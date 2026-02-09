@@ -111,7 +111,7 @@
         /* --- CONFIGURATION --- */
         const CLIENT_ID = '587183038273-n6tf599jh3koqc168ns19p7uv6l12d9o.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyBIfIR84-XXE0fN0GzMvsl8pSMqfgLnd9Y'; 
-        const DASHBOARD_PASSWORD = '1234'; // 여기서 비밀번호를 변경하세요.
+        const DASHBOARD_PASSWORD = '1234'; 
         /* --------------------- */
 
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
@@ -292,8 +292,15 @@
                 renderEvents(data);
 
             } catch (err) {
-                console.error(err);
-                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">데이터 로드 실패.</td></tr>`;
+                console.error("데이터 패치 에러:", err);
+                let errorDetail = "데이터 로드 실패.";
+                if (err.result && err.result.error) {
+                    errorDetail += ` (${err.result.error.message})`;
+                } else if (err.status) {
+                    errorDetail += ` (상태 코드: ${err.status})`;
+                }
+                
+                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500 font-semibold">${errorDetail}</td></tr>`;
                 eventTable.classList.remove('hidden');
             } finally {
                 loadingOverlay.classList.add('hidden');
