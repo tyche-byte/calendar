@@ -164,9 +164,12 @@
         async function changeYear(year) {
             currentYear = year;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
-            document.getElementById(`tab_${year}`).classList.add('tab-active');
-            if (cachedData[year]) renderEvents(cachedData[year]);
-            else fetchEvents(year);
+            const tab = document.getElementById(`tab_${year}`);
+            if (tab) tab.classList.add('tab-active');
+            if (gapi.client.getToken()) {
+                if (cachedData[year]) renderEvents(cachedData[year]);
+                else fetchEvents(year);
+            }
         }
 
         async function fetchEvents(year) {
@@ -177,7 +180,6 @@
             const tMax = `${year}-12-31T23:59:59Z`;
 
             try {
-                // gapi의 요청 객체를 실제 Promise로 래핑하여 실행합니다.
                 const myEventsPromise = new Promise((resolve, reject) => {
                     gapi.client.calendar.events.list({
                         calendarId: 'primary',
@@ -199,18 +201,23 @@
                 const [myRes, holRes] = await Promise.all([myEventsPromise, holidayPromise]);
 
                 const data = [];
-                const ys = new Date(year + "-01-01");
+                const ys = new Date(year + "-01-01T00:00:00");
                 const ye = new Date(year + "-12-31T23:59:59");
 
                 const process = (items, cat) => {
                     items.forEach(e => {
+                        // 필터링 로직 추가: 제목이 없거나, '사무실' 같은 근무 위치 정보는 제외
+                        if (!e.summary || e.summary === "사무실" || e.eventType === 'workingLocation') return;
+                        
                         let cur = new Date(e.start.dateTime || e.start.date);
                         let end = new Date(e.end.dateTime || e.end.date);
+                        
+                        // 다중일 일정 분할
                         while (cur < end) {
                             if (cur >= ys && cur <= ye) {
                                 data.push({
                                     category: cat,
-                                    title: e.summary || "(제목 없음)",
+                                    title: e.summary,
                                     date: cur.toISOString().split('T')[0],
                                     start: !e.start.dateTime ? "종일" : cur.toTimeString().slice(0, 5),
                                     end: !e.end.dateTime ? "종일" : end.toTimeString().slice(0, 5),
@@ -218,7 +225,8 @@
                                     loc: e.location || "-"
                                 });
                             }
-                            cur.setDate(cur.getDate() + 1); cur.setHours(0,0,0,0);
+                            cur.setDate(cur.getDate() + 1);
+                            cur.setHours(0, 0, 0, 0);
                         }
                     });
                 };
@@ -248,7 +256,7 @@
                 list.innerHTML = evs.map(ev => `
                     <tr class="${ev.category === '휴일' ? 'bg-red-50 text-red-600 font-semibold' : ''}">
                         <td class="px-6 py-4">${ev.category}</td>
-                        <td class="px-6 py-4">${ev.title}</td>
+                        <td class="px-6 py-4 font-medium">${ev.title}</td>
                         <td class="px-6 py-4">${ev.date}</td>
                         <td class="px-6 py-4">${ev.start}</td>
                         <td class="px-6 py-4">${ev.end}</td>
