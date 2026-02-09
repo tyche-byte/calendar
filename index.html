@@ -79,7 +79,7 @@
                     <table class="min-w-full divide-y divide-gray-200 hidden" id="event_table">
                         <thead class="bg-blue-600">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">구분</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">출처(캘린더)</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">일정명</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">날짜</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">시작</th>
@@ -180,43 +180,59 @@
             const tMax = `${year}-12-31T23:59:59Z`;
 
             try {
-                const myEventsPromise = new Promise((resolve, reject) => {
-                    gapi.client.calendar.events.list({
-                        calendarId: 'primary',
-                        timeMin: tMin,
-                        timeMax: tMax,
-                        singleEvents: true
-                    }).then(resolve, reject);
+                // 1. 모든 캘린더 목록 가져오기
+                const calendarListRes = await gapi.client.calendar.calendarList.list();
+                const calendars = calendarListRes.result.items;
+
+                // 2. 각 캘린더별로 일정 가져오기 (비동기 병렬 실행)
+                const fetchPromises = calendars.map(cal => {
+                    return new Promise((resolve) => {
+                        gapi.client.calendar.events.list({
+                            calendarId: cal.id,
+                            timeMin: tMin,
+                            timeMax: tMax,
+                            singleEvents: true
+                        }).then(
+                            resp => resolve({ calName: cal.summary, items: resp.result.items || [] }),
+                            err => {
+                                console.warn(`${cal.summary} 일정 로드 실패:`, err);
+                                resolve({ calName: cal.summary, items: [] });
+                            }
+                        );
+                    });
                 });
 
+                // 3. 공휴일 별도 추가
                 const holidayPromise = new Promise((resolve) => {
                     gapi.client.calendar.events.list({
                         calendarId: HOLIDAY_CAL_ID,
                         timeMin: tMin,
                         timeMax: tMax,
                         singleEvents: true
-                    }).then(resolve, () => resolve({ result: { items: [] } }));
+                    }).then(
+                        resp => resolve({ calName: "휴일", items: resp.result.items || [] }),
+                        () => resolve({ calName: "휴일", items: [] })
+                    );
                 });
 
-                const [myRes, holRes] = await Promise.all([myEventsPromise, holidayPromise]);
+                const allResults = await Promise.all([...fetchPromises, holidayPromise]);
 
                 const data = [];
                 const ys = new Date(year + "-01-01T00:00:00");
                 const ye = new Date(year + "-12-31T23:59:59");
 
-                const process = (items, cat) => {
-                    items.forEach(e => {
-                        // 필터링 로직 추가: 제목이 없거나, '사무실' 같은 근무 위치 정보는 제외
+                allResults.forEach(res => {
+                    res.items.forEach(e => {
+                        // 필터링: 제목이 없거나, '사무실' 근무 상태 정보는 제외
                         if (!e.summary || e.summary === "사무실" || e.eventType === 'workingLocation') return;
                         
                         let cur = new Date(e.start.dateTime || e.start.date);
                         let end = new Date(e.end.dateTime || e.end.date);
                         
-                        // 다중일 일정 분할
                         while (cur < end) {
                             if (cur >= ys && cur <= ye) {
                                 data.push({
-                                    category: cat,
+                                    calendarName: res.calName,
                                     title: e.summary,
                                     date: cur.toISOString().split('T')[0],
                                     start: !e.start.dateTime ? "종일" : cur.toTimeString().slice(0, 5),
@@ -229,11 +245,9 @@
                             cur.setHours(0, 0, 0, 0);
                         }
                     });
-                };
+                });
 
-                process(myRes.result.items || [], "");
-                process(holRes.result.items || [], "휴일");
-
+                // 날짜순 정렬
                 data.sort((a, b) => new Date(a.date) - new Date(b.date));
                 cachedData[year] = data;
                 renderEvents(data);
@@ -254,14 +268,14 @@
                 list.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-500">일정이 없습니다.</td></tr>';
             } else {
                 list.innerHTML = evs.map(ev => `
-                    <tr class="${ev.category === '휴일' ? 'bg-red-50 text-red-600 font-semibold' : ''}">
-                        <td class="px-6 py-4">${ev.category}</td>
-                        <td class="px-6 py-4 font-medium">${ev.title}</td>
+                    <tr class="${ev.calendarName === '휴일' ? 'bg-red-50 text-red-600 font-semibold' : ''}">
+                        <td class="px-6 py-4 text-xs text-gray-400">${ev.calendarName}</td>
+                        <td class="px-6 py-4 font-medium text-gray-800">${ev.title}</td>
                         <td class="px-6 py-4">${ev.date}</td>
                         <td class="px-6 py-4">${ev.start}</td>
                         <td class="px-6 py-4">${ev.end}</td>
                         <td class="px-6 py-4">${ev.isAllDay}</td>
-                        <td class="px-6 py-4 truncate max-w-xs">${ev.loc}</td>
+                        <td class="px-6 py-4 truncate max-w-xs text-xs">${ev.loc}</td>
                     </tr>
                 `).join('');
             }
