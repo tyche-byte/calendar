@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구글 캘린더 다년도 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        .holiday-row { color: #ef4444; font-weight: 600; }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
+        .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Password Overlay Style */
+        #password_overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #ffffff; z-index: 9999; display: flex;
+            align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Password Protection Overlay -->
+    <div id="password_overlay">
+        <div class="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-lock text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">보안 접속</h2>
+            <p class="text-gray-500 mb-6">6844</p>
+            <input type="password" id="access_password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="비밀번호 입력">
+            <button onclick="checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">확인</button>
+            <p id="password_error" class="text-red-500 text-sm mt-3 hidden">비밀번호가 올바르지 않습니다.</p>
+        </div>
+    </div>
+
+    <!-- Main Content (Hidden by default) -->
+    <div id="main_content" style="display: none;">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fa-solid fa-calendar-days text-blue-600 mr-2"></i>
+                    Calendar Dashboard (2026-2030)
+                </h1>
+                <div class="flex items-center space-x-3">
+                    <button onclick="refreshCurrentYear()" class="text-gray-500 hover:text-blue-600 p-2 transition" title="새로고침">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                    <div id="auth_buttons">
+                        <button id="authorize_button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">
+                            구글 로그인
+                        </button>
+                        <button id="signout_button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">
+                            로그아웃
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Year Navigation -->
+            <div class="flex space-x-4 mb-6 border-b border-gray-200 overflow-x-auto" id="year_tabs">
+                <button onclick="changeYear('2026')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2026">2026</button>
+                <button onclick="changeYear('2027')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2027">2027</button>
+                <button onclick="changeYear('2028')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2028">2028</button>
+                <button onclick="changeYear('2029')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2029">2029</button>
+                <button onclick="changeYear('2030')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2030">2030</button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="content_display" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div id="loading_overlay" class="p-20 flex flex-col items-center justify-center hidden">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+                    <p class="text-gray-500">일정을 불러오는 중입니다...</p>
+                </div>
+
+                <div id="empty_state" class="p-20 flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-lock text-gray-300 text-6xl mb-4"></i>
+                    <p class="text-gray-500 text-lg">데이터를 보려면 구글 계정으로 로그인하세요.</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 hidden" id="event_table">
+                        <thead class="bg-blue-600">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">구분</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">일정명</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">날짜</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">시작</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종료</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종일</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">장소</th>
+                            </tr>
+                        </thead>
+                        <tbody id="event_list" class="bg-white divide-y divide-gray-200">
+                            <!-- Events injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        /* --- CONFIGURATION --- */
+        const CLIENT_ID = '587183038273-n6tf599jh3koqc168ns19p7uv6l12d9o.apps.googleusercontent.com'; 
+        const API_KEY = 'AIzaSyBIfIR84-XXE0fN0GzMvsl8pSMqfgLnd9Y'; 
+        const DASHBOARD_PASSWORD = '1234'; // 사용할 비밀번호를 여기서 수정하세요!
+        /* --------------------- */
+
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+        const HOLIDAY_CAL_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let currentYear = "2026";
+        let cachedData = {};
+
+        const authorizeButton = document.getElementById('authorize_button');
+        const signoutButton = document.getElementById('signout_button');
+        const eventTable = document.getElementById('event_table');
+        const eventList = document.getElementById('event_list');
+        const loadingOverlay = document.getElementById('loading_overlay');
+        const emptyState = document.getElementById('empty_state');
+        const passwordOverlay = document.getElementById('password_overlay');
+        const mainContent = document.getElementById('main_content');
+
+        // 비밀번호 확인 함수
+        function checkPassword() {
+            const input = document.getElementById('access_password').value;
+            const errorMsg = document.getElementById('password_error');
+            
+            if (input === DASHBOARD_PASSWORD) {
+                passwordOverlay.style.display = 'none';
+                mainContent.style.display = 'block';
+                // 비밀번호 통과 후 구글 스크립트 로드 시작 (보안상 통과 후 로드)
+                loadGoogleScripts();
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        // 엔터키 지원
+        document.getElementById('access_password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkPassword();
+        });
+
+        function loadGoogleScripts() {
+            const gapiScript = document.createElement('script');
+            gapiScript.src = "https://apis.google.com/js/api.js";
+            gapiScript.async = true;
+            gapiScript.defer = true;
+            gapiScript.onload = gapiLoaded;
+            document.body.appendChild(gapiScript);
+
+            const gisScript = document.createElement('script');
+            gisScript.src = "https://accounts.google.com/gsi/client";
+            gisScript.async = true;
+            gisScript.defer = true;
+            gisScript.onload = gisLoaded;
+            document.body.appendChild(gisScript);
+        }
+
+        window.gapiLoaded = function() {
+            gapi.load('client', initializeGapiClient);
+        };
+
+        window.gisLoaded = function() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', 
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        };
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                authorizeButton.style.display = 'block';
+            }
+        }
+
+        authorizeButton.onclick = () => {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) throw (resp);
+                authorizeButton.style.display = 'none';
+                signoutButton.style.display = 'block';
+                emptyState.style.display = 'none';
+                changeYear(currentYear);
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        };
+
+        signoutButton.onclick = () => {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                authorizeButton.style.display = 'block';
+                signoutButton.style.display = 'none';
+                eventTable.classList.add('hidden');
+                emptyState.style.display = 'flex';
+                cachedData = {};
+            }
+        };
+
+        async function changeYear(year) {
+            currentYear = year;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+            const tab = document.getElementById(`tab_${year}`);
+            if (tab) tab.classList.add('tab-active');
+
+            if (gapi.client.getToken() === null) return;
+
+            if (cachedData[year]) {
+                renderEvents(cachedData[year]);
+            } else {
+                await fetchEventsForYear(year);
+            }
+        }
+
+        // 현재 연도 데이터 강제 새로고침
+        async function refreshCurrentYear() {
+            if (gapi.client.getToken() === null) return;
+            delete cachedData[currentYear];
+            await fetchEventsForYear(currentYear);
+        }
+
+        async function fetchEventsForYear(year) {
+            loadingOverlay.classList.remove('hidden');
+            eventTable.classList.add('hidden');
+            eventList.innerHTML = '';
+
+            const timeMin = `${year}-01-01T00:00:00Z`;
+            const timeMax = `${year}-12-31T23:59:59Z`;
+
+            try {
+                const [myEventsRes, holidayEventsRes] = await Promise.all([
+                    gapi.client.calendar.events.list({
+                        'calendarId': 'primary',
+                        'timeMin': timeMin,
+                        'timeMax': timeMax,
+                        'showDeleted': false,
+                        'singleEvents': true
+                    }),
+                    gapi.client.calendar.events.list({
+                        'calendarId': HOLIDAY_CAL_ID,
+                        'timeMin': timeMin,
+                        'timeMax': timeMax,
+                        'singleEvents': true
+                    }).catch(() => ({ result: { items: [] } }))
+                ]);
+
+                const data = [];
+                const yearStart = new Date(year + "-01-01T00:00:00");
+                const yearEnd = new Date(year + "-12-31T23:59:59");
+
+                myEventsRes.result.items.forEach(event => {
+                    if (event.summary === "사무실" || !event.summary) return;
+                    expandEventByDay(data, "", event, yearStart, yearEnd);
+                });
+
+                holidayEventsRes.result.items.forEach(event => {
+                    expandEventByDay(data, "휴일", event, yearStart, yearEnd);
+                });
+
+                data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                cachedData[year] = data;
+                renderEvents(data);
+
+            } catch (err) {
+                console.error(err);
+                eventList.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">데이터 로드 실패. 권한을 확인하세요.</td></tr>';
+                eventTable.classList.remove('hidden');
+            } finally {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function expandEventByDay(dataArray, category, event, yearStart, yearEnd) {
+            let start = new Date(event.start.dateTime || event.start.date);
+            let end = new Date(event.end.dateTime || event.end.date);
+            const isAllDay = !event.start.dateTime;
+
+            let current = new Date(start);
+            while (current < end) {
+                if (current >= yearStart && current <= yearEnd) {
+                    const dateStr = current.toISOString().split('T')[0];
+                    dataArray.push({
+                        category: category,
+                        title: event.summary,
+                        date: dateStr,
+                        startTime: isAllDay ? "종일" : (isSameDay(current, start) ? formatTime(start) : "00:00"),
+                        endTime: isAllDay ? "종일" : (isSameDay(current, end) ? formatTime(end) : "23:59"),
+                        isAllDay: isAllDay ? "O" : "X",
+                        location: event.location || "-"
+                    });
+                }
+                current.setDate(current.getDate() + 1);
+                current.setHours(0, 0, 0, 0);
+            }
+        }
+
+        function renderEvents(events) {
+            eventList.innerHTML = '';
+            if (events.length === 0) {
+                eventList.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-gray-500">일정이 없습니다.</td></tr>';
+            } else {
+                events.forEach(ev => {
+                    const row = document.createElement('tr');
+                    if (ev.category === "휴일") row.classList.add('holiday-row', 'bg-red-50');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${ev.category}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${ev.title}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.startTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.endTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.isAllDay}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">${ev.location}</td>
+                    `;
+                    eventList.appendChild(row);
+                });
+            }
+            eventTable.classList.remove('hidden');
+        }
+
+        function isSameDay(d1, d2) {
+            return d1.getFullYear() === d2.getFullYear() &&
+                   d1.getMonth() === d2.getMonth() &&
+                   d1.getDate() === d2.getDate();
+        }
+
+        function formatTime(date) {
+            return date.toTimeString().substring(0, 5);
+        }
+    </script>
+</body>
+</html>
