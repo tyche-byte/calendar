@@ -111,7 +111,7 @@
         /* --- CONFIGURATION --- */
         const CLIENT_ID = '587183038273-n6tf599jh3koqc168ns19p7uv6l12d9o.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyBIfIR84-XXE0fN0GzMvsl8pSMqfgLnd9Y'; 
-        const DASHBOARD_PASSWORD = '1234'; // 사용할 비밀번호
+        const DASHBOARD_PASSWORD = '1234'; // 여기서 비밀번호를 변경하세요.
         /* --------------------- */
 
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
@@ -133,7 +133,6 @@
         const passwordOverlay = document.getElementById('password_overlay');
         const mainContent = document.getElementById('main_content');
 
-        // 비밀번호 확인 함수
         function checkPassword() {
             const input = document.getElementById('access_password').value;
             const errorMsg = document.getElementById('password_error');
@@ -191,9 +190,6 @@
                 maybeEnableButtons();
             } catch (error) {
                 console.error("GAPI 초기화 에러:", error);
-                if (error.status === "PERMISSION_DENIED") {
-                    console.log("힌트: 구글 클라우드 콘솔에서 API 키의 웹사이트 제한을 '없음'으로 설정했는지 확인하세요.");
-                }
             }
         }
 
@@ -297,9 +293,7 @@
 
             } catch (err) {
                 console.error(err);
-                let msg = "데이터 로드 실패.";
-                if (err.status === 403) msg = "API 키 제한 에러 (403). 콘솔 설정을 확인하세요.";
-                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">${msg}</td></tr>`;
+                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">데이터 로드 실패.</td></tr>`;
                 eventTable.classList.remove('hidden');
             } finally {
                 loadingOverlay.classList.add('hidden');
