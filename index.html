@@ -9,7 +9,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
         body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
-        .holiday-row { color: #ef4444; font-weight: 600; }
+        .holiday-row { background-color: #fef2f2; color: #ef4444; font-weight: 600; }
         .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
         .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -74,12 +74,13 @@
                 <div id="empty_state" class="p-20 flex flex-col items-center justify-center">
                     <i class="fa-solid fa-lock text-gray-300 text-6xl mb-4"></i>
                     <p class="text-gray-500 text-lg">데이터를 보려면 구글 계정으로 로그인하세요.</p>
+                    <p class="text-gray-400 text-sm mt-2">로그인 시 '모든 캘린더 보기' 권한에 꼭 체크해 주세요.</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 hidden" id="event_table">
                         <thead class="bg-blue-600">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">출처(캘린더)</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">출처</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">일정명</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">날짜</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">시작</th>
@@ -180,42 +181,42 @@
             const tMax = `${year}-12-31T23:59:59Z`;
 
             try {
-                // 1. 모든 캘린더 목록 가져오기
+                // 1. 캘린더 리스트 가져오기
                 const calendarListRes = await gapi.client.calendar.calendarList.list();
-                const calendars = calendarListRes.result.items;
+                const calendarItems = calendarListRes.result.items || [];
+                
+                // 2. 캘린더 ID 세트 구성 (중복 방지)
+                const calendarIds = new Set();
+                calendarIds.add('primary'); // 기본 캘린더 강제 포함
+                calendarItems.forEach(cal => calendarIds.add(cal.id));
+                calendarIds.add(HOLIDAY_CAL_ID); // 공휴일 캘린더
 
-                // 2. 각 캘린더별로 일정 가져오기 (비동기 병렬 실행)
-                const fetchPromises = calendars.map(cal => {
+                // 3. 병렬 요청 생성
+                const fetchPromises = Array.from(calendarIds).map(id => {
                     return new Promise((resolve) => {
                         gapi.client.calendar.events.list({
-                            calendarId: cal.id,
+                            calendarId: id,
                             timeMin: tMin,
                             timeMax: tMax,
-                            singleEvents: true
+                            singleEvents: true,
+                            orderBy: 'startTime'
                         }).then(
-                            resp => resolve({ calName: cal.summary, items: resp.result.items || [] }),
+                            resp => {
+                                // 캘린더 이름 찾기
+                                let calName = (id === 'primary') ? "기본" : (id === HOLIDAY_CAL_ID ? "휴일" : "일정");
+                                const match = calendarItems.find(c => c.id === id);
+                                if (match) calName = match.summary;
+                                resolve({ calName, items: resp.result.items || [] });
+                            },
                             err => {
-                                console.warn(`${cal.summary} 일정 로드 실패:`, err);
-                                resolve({ calName: cal.summary, items: [] });
+                                console.warn(`${id} 로드 실패:`, err);
+                                resolve({ calName: "오류", items: [] });
                             }
                         );
                     });
                 });
 
-                // 3. 공휴일 별도 추가
-                const holidayPromise = new Promise((resolve) => {
-                    gapi.client.calendar.events.list({
-                        calendarId: HOLIDAY_CAL_ID,
-                        timeMin: tMin,
-                        timeMax: tMax,
-                        singleEvents: true
-                    }).then(
-                        resp => resolve({ calName: "휴일", items: resp.result.items || [] }),
-                        () => resolve({ calName: "휴일", items: [] })
-                    );
-                });
-
-                const allResults = await Promise.all([...fetchPromises, holidayPromise]);
+                const allResults = await Promise.all(fetchPromises);
 
                 const data = [];
                 const ys = new Date(year + "-01-01T00:00:00");
@@ -223,12 +224,17 @@
 
                 allResults.forEach(res => {
                     res.items.forEach(e => {
-                        // 필터링: 제목이 없거나, '사무실' 근무 상태 정보는 제외
+                        // 근무 위치 정보나 제목 없는 시스템 일정 제외
                         if (!e.summary || e.summary === "사무실" || e.eventType === 'workingLocation') return;
                         
-                        let cur = new Date(e.start.dateTime || e.start.date);
+                        let start = new Date(e.start.dateTime || e.start.date);
                         let end = new Date(e.end.dateTime || e.end.date);
                         
+                        // 기간 내에 포함되는지 확인 및 다중일 처리
+                        let cur = new Date(start);
+                        // 종료 시간이 시작 시간과 같으면 최소 1분이라도 있게 설정 (반복문 보장)
+                        if (start.getTime() === end.getTime()) end.setMinutes(end.getMinutes() + 1);
+
                         while (cur < end) {
                             if (cur >= ys && cur <= ye) {
                                 data.push({
@@ -247,14 +253,16 @@
                     });
                 });
 
-                // 날짜순 정렬
-                data.sort((a, b) => new Date(a.date) - new Date(b.date));
-                cachedData[year] = data;
-                renderEvents(data);
+                // 중복 제거 (여러 캘린더에 같은 일정이 있을 경우 대비)
+                const uniqueData = Array.from(new Set(data.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
+                uniqueData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                cachedData[year] = uniqueData;
+                renderEvents(uniqueData);
 
             } catch (err) {
                 console.error(err);
-                const msg = err.result?.error?.message || "데이터를 불러올 수 없습니다.";
+                const msg = err.result?.error?.message || "데이터 로드 중 오류가 발생했습니다.";
                 document.getElementById('event_list').innerHTML = `<tr><td colspan="7" class="p-10 text-center text-red-500 font-bold">에러: ${msg}</td></tr>`;
                 document.getElementById('event_table').classList.remove('hidden');
             } finally {
@@ -265,17 +273,17 @@
         function renderEvents(evs) {
             const list = document.getElementById('event_list');
             if (!evs.length) {
-                list.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-500">일정이 없습니다.</td></tr>';
+                list.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-500 font-medium">표시할 일정이 없습니다.<br><span class="text-xs text-gray-400 mt-2">입력한 일정이 있다면 로그아웃 후 다시 로그인하며 권한을 모두 승인해 보세요.</span></td></tr>';
             } else {
                 list.innerHTML = evs.map(ev => `
-                    <tr class="${ev.calendarName === '휴일' ? 'bg-red-50 text-red-600 font-semibold' : ''}">
-                        <td class="px-6 py-4 text-xs text-gray-400">${ev.calendarName}</td>
-                        <td class="px-6 py-4 font-medium text-gray-800">${ev.title}</td>
-                        <td class="px-6 py-4">${ev.date}</td>
-                        <td class="px-6 py-4">${ev.start}</td>
-                        <td class="px-6 py-4">${ev.end}</td>
-                        <td class="px-6 py-4">${ev.isAllDay}</td>
-                        <td class="px-6 py-4 truncate max-w-xs text-xs">${ev.loc}</td>
+                    <tr class="${ev.calendarName === '휴일' ? 'holiday-row' : ''} hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 text-[10px] text-gray-400 font-bold">${ev.calendarName}</td>
+                        <td class="px-6 py-4 font-semibold text-gray-800">${ev.title}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${ev.date}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${ev.start}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${ev.end}</td>
+                        <td class="px-6 py-4 text-sm text-center text-gray-500">${ev.isAllDay}</td>
+                        <td class="px-6 py-4 truncate max-w-xs text-xs text-gray-400">${ev.loc}</td>
                     </tr>
                 `).join('');
             }
