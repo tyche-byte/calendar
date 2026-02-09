@@ -293,14 +293,31 @@
 
             } catch (err) {
                 console.error("데이터 패치 에러:", err);
-                let errorDetail = "데이터 로드 실패.";
+                let errorMsg = "데이터 로드 실패";
+                let reason = "알 수 없는 에러";
+
+                // 구글 API 에러 메시지 추출
                 if (err.result && err.result.error) {
-                    errorDetail += ` (${err.result.error.message})`;
-                } else if (err.status) {
-                    errorDetail += ` (상태 코드: ${err.status})`;
+                    reason = `${err.result.error.message} (코드: ${err.result.error.code})`;
+                } else if (err.message) {
+                    reason = err.message;
                 }
-                
-                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500 font-semibold">${errorDetail}</td></tr>`;
+
+                eventList.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center">
+                            <p class="text-red-500 font-bold mb-2">${errorMsg}</p>
+                            <p class="text-gray-600 text-sm">상세 사유: ${reason}</p>
+                            <div class="mt-6 text-xs text-left inline-block bg-gray-50 p-4 border rounded text-gray-500 leading-relaxed">
+                                <p class="font-bold mb-1">체크리스트:</p>
+                                <p>1. 구글 콘솔에서 'Google Calendar API'가 [사용 설정] 되어 있나요?</p>
+                                <p>2. API 키의 [웹사이트 제한] 주소가 정확한가요? (https://tyche-byte.github.io/*)</p>
+                                <p>3. OAuth 클라이언트 ID의 [승인된 JavaScript 원본] 주소가 정확한가요?</p>
+                                <p>4. 로그인 시 모든 권한(캘린더 조회)에 체크했나요?</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
                 eventTable.classList.remove('hidden');
             } finally {
                 loadingOverlay.classList.add('hidden');
