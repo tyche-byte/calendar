@@ -31,9 +31,9 @@
                 <i class="fa-solid fa-lock text-2xl"></i>
             </div>
             <h2 class="text-2xl font-bold text-gray-800 mb-2">보안 접속</h2>
-            <p class="text-gray-500 mb-6">암호를 입력하시오</p>
+            <p class="text-gray-500 mb-6">대시보드 접속을 위해 비밀번호를 입력하세요.</p>
             <input type="password" id="access_password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="비밀번호 입력">
-            <button onclick="checkPassword(6844)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">확인</button>
+            <button onclick="checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">확인</button>
             <p id="password_error" class="text-red-500 text-sm mt-3 hidden">비밀번호가 올바르지 않습니다.</p>
         </div>
     </div>
@@ -111,7 +111,7 @@
         /* --- CONFIGURATION --- */
         const CLIENT_ID = '587183038273-n6tf599jh3koqc168ns19p7uv6l12d9o.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyBIfIR84-XXE0fN0GzMvsl8pSMqfgLnd9Y'; 
-        const DASHBOARD_PASSWORD = '1234'; // 사용할 비밀번호를 여기서 수정하세요!
+        const DASHBOARD_PASSWORD = '1234'; // 사용할 비밀번호
         /* --------------------- */
 
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
@@ -141,14 +141,12 @@
             if (input === DASHBOARD_PASSWORD) {
                 passwordOverlay.style.display = 'none';
                 mainContent.style.display = 'block';
-                // 비밀번호 통과 후 구글 스크립트 로드 시작 (보안상 통과 후 로드)
                 loadGoogleScripts();
             } else {
                 errorMsg.classList.remove('hidden');
             }
         }
 
-        // 엔터키 지원
         document.getElementById('access_password').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') checkPassword();
         });
@@ -184,12 +182,19 @@
         };
 
         async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
-            maybeEnableButtons();
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+            } catch (error) {
+                console.error("GAPI 초기화 에러:", error);
+                if (error.status === "PERMISSION_DENIED") {
+                    console.log("힌트: 구글 클라우드 콘솔에서 API 키의 웹사이트 제한을 '없음'으로 설정했는지 확인하세요.");
+                }
+            }
         }
 
         function maybeEnableButtons() {
@@ -242,7 +247,6 @@
             }
         }
 
-        // 현재 연도 데이터 강제 새로고침
         async function refreshCurrentYear() {
             if (gapi.client.getToken() === null) return;
             delete cachedData[currentYear];
@@ -293,7 +297,9 @@
 
             } catch (err) {
                 console.error(err);
-                eventList.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">데이터 로드 실패. 권한을 확인하세요.</td></tr>';
+                let msg = "데이터 로드 실패.";
+                if (err.status === 403) msg = "API 키 제한 에러 (403). 콘솔 설정을 확인하세요.";
+                eventList.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">${msg}</td></tr>`;
                 eventTable.classList.remove('hidden');
             } finally {
                 loadingOverlay.classList.add('hidden');
