@@ -14,7 +14,6 @@
         .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Password Overlay Style */
         #password_overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #ffffff; z-index: 9999; display: flex;
@@ -38,9 +37,8 @@
         </div>
     </div>
 
-    <!-- Main Content (Hidden by default) -->
+    <!-- Main Content -->
     <div id="main_content" style="display: none;">
-        <!-- Header -->
         <header class="bg-white shadow-sm sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                 <h1 class="text-xl font-bold text-gray-800 flex items-center">
@@ -52,19 +50,14 @@
                         <i class="fa-solid fa-rotate"></i>
                     </button>
                     <div id="auth_buttons">
-                        <button id="authorize_button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">
-                            구글 로그인
-                        </button>
-                        <button id="signout_button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">
-                            로그아웃
-                        </button>
+                        <button id="authorize_button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">구글 로그인</button>
+                        <button id="signout_button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition" style="display: none;">로그아웃</button>
                     </div>
                 </div>
             </div>
         </header>
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Year Navigation -->
             <div class="flex space-x-4 mb-6 border-b border-gray-200 overflow-x-auto" id="year_tabs">
                 <button onclick="changeYear('2026')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2026">2026</button>
                 <button onclick="changeYear('2027')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2027">2027</button>
@@ -73,34 +66,29 @@
                 <button onclick="changeYear('2030')" class="tab-btn px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition" id="tab_2030">2030</button>
             </div>
 
-            <!-- Content Area -->
             <div id="content_display" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div id="loading_overlay" class="p-20 flex flex-col items-center justify-center hidden">
                     <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
                     <p class="text-gray-500">일정을 불러오는 중입니다...</p>
                 </div>
-
                 <div id="empty_state" class="p-20 flex flex-col items-center justify-center">
                     <i class="fa-solid fa-lock text-gray-300 text-6xl mb-4"></i>
                     <p class="text-gray-500 text-lg">데이터를 보려면 구글 계정으로 로그인하세요.</p>
                 </div>
-
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 hidden" id="event_table">
                         <thead class="bg-blue-600">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">구분</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">일정명</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">날짜</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">시작</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종료</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종일</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">장소</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">구분</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">일정명</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">날짜</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">시작</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종료</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">종일</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">장소</th>
                             </tr>
                         </thead>
-                        <tbody id="event_list" class="bg-white divide-y divide-gray-200">
-                            <!-- Events injected here -->
-                        </tbody>
+                        <tbody id="event_list" class="bg-white divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
             </div>
@@ -108,286 +96,173 @@
     </div>
 
     <script>
-        /* --- CONFIGURATION --- */
+        /* --- 핵심 설정 --- */
         const CLIENT_ID = '587183038273-n6tf599jh3koqc168ns19p7uv6l12d9o.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyBIfIR84-XXE0fN0GzMvsl8pSMqfgLnd9Y'; 
         const DASHBOARD_PASSWORD = '1234'; 
-        /* --------------------- */
 
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
         const HOLIDAY_CAL_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
-
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-        let currentYear = "2026";
-        let cachedData = {};
-
-        const authorizeButton = document.getElementById('authorize_button');
-        const signoutButton = document.getElementById('signout_button');
-        const eventTable = document.getElementById('event_table');
-        const eventList = document.getElementById('event_list');
-        const loadingOverlay = document.getElementById('loading_overlay');
-        const emptyState = document.getElementById('empty_state');
-        const passwordOverlay = document.getElementById('password_overlay');
-        const mainContent = document.getElementById('main_content');
+        let tokenClient, gapiInited = false, gisInited = false, currentYear = "2026", cachedData = {};
 
         function checkPassword() {
             const input = document.getElementById('access_password').value;
-            const errorMsg = document.getElementById('password_error');
-            
             if (input === DASHBOARD_PASSWORD) {
-                passwordOverlay.style.display = 'none';
-                mainContent.style.display = 'block';
-                loadGoogleScripts();
+                document.getElementById('password_overlay').style.display = 'none';
+                document.getElementById('main_content').style.display = 'block';
+                loadScripts();
             } else {
-                errorMsg.classList.remove('hidden');
+                document.getElementById('password_error').classList.remove('hidden');
             }
         }
 
-        document.getElementById('access_password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') checkPassword();
-        });
+        function loadScripts() {
+            const s1 = document.createElement('script');
+            s1.src = "https://apis.google.com/js/api.js";
+            s1.onload = () => gapi.load('client', initGapi);
+            document.body.appendChild(s1);
 
-        function loadGoogleScripts() {
-            const gapiScript = document.createElement('script');
-            gapiScript.src = "https://apis.google.com/js/api.js";
-            gapiScript.async = true;
-            gapiScript.defer = true;
-            gapiScript.onload = gapiLoaded;
-            document.body.appendChild(gapiScript);
-
-            const gisScript = document.createElement('script');
-            gisScript.src = "https://accounts.google.com/gsi/client";
-            gisScript.async = true;
-            gisScript.defer = true;
-            gisScript.onload = gisLoaded;
-            document.body.appendChild(gisScript);
+            const s2 = document.createElement('script');
+            s2.src = "https://accounts.google.com/gsi/client";
+            s2.onload = initGis;
+            document.body.appendChild(s2);
         }
 
-        window.gapiLoaded = function() {
-            gapi.load('client', initializeGapiClient);
-        };
+        async function initGapi() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
 
-        window.gisLoaded = function() {
+        function initGis() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', 
+                scope: 'https://www.googleapis.com/auth/calendar.readonly',
+                callback: ''
             });
             gisInited = true;
             maybeEnableButtons();
-        };
-
-        async function initializeGapiClient() {
-            try {
-                await gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: [DISCOVERY_DOC],
-                });
-                gapiInited = true;
-                maybeEnableButtons();
-            } catch (error) {
-                console.error("GAPI 초기화 에러:", error);
-            }
         }
 
         function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                authorizeButton.style.display = 'block';
-            }
+            if (gapiInited && gisInited) document.getElementById('authorize_button').style.display = 'block';
         }
 
-        authorizeButton.onclick = () => {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) throw (resp);
-                authorizeButton.style.display = 'none';
-                signoutButton.style.display = 'block';
-                emptyState.style.display = 'none';
+        document.getElementById('authorize_button').onclick = () => {
+            tokenClient.callback = (resp) => {
+                if (resp.error) return;
+                document.getElementById('authorize_button').style.display = 'none';
+                document.getElementById('signout_button').style.display = 'block';
+                document.getElementById('empty_state').style.display = 'none';
                 changeYear(currentYear);
             };
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        };
-
-        signoutButton.onclick = () => {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken('');
-                authorizeButton.style.display = 'block';
-                signoutButton.style.display = 'none';
-                eventTable.classList.add('hidden');
-                emptyState.style.display = 'flex';
-                cachedData = {};
-            }
+            tokenClient.requestAccessToken({prompt: 'consent'});
         };
 
         async function changeYear(year) {
             currentYear = year;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
-            const tab = document.getElementById(`tab_${year}`);
-            if (tab) tab.classList.add('tab-active');
-
-            if (gapi.client.getToken() === null) return;
-
-            if (cachedData[year]) {
-                renderEvents(cachedData[year]);
-            } else {
-                await fetchEventsForYear(year);
-            }
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+            document.getElementById(`tab_${year}`).classList.add('tab-active');
+            if (cachedData[year]) renderEvents(cachedData[year]);
+            else fetchEvents(year);
         }
 
-        async function refreshCurrentYear() {
-            if (gapi.client.getToken() === null) return;
-            delete cachedData[currentYear];
-            await fetchEventsForYear(currentYear);
-        }
-
-        async function fetchEventsForYear(year) {
-            loadingOverlay.classList.remove('hidden');
-            eventTable.classList.add('hidden');
-            eventList.innerHTML = '';
-
-            const timeMin = `${year}-01-01T00:00:00Z`;
-            const timeMax = `${year}-12-31T23:59:59Z`;
+        async function fetchEvents(year) {
+            document.getElementById('loading_overlay').classList.remove('hidden');
+            document.getElementById('event_table').classList.add('hidden');
+            
+            const tMin = `${year}-01-01T00:00:00Z`;
+            const tMax = `${year}-12-31T23:59:59Z`;
 
             try {
-                // gapi.client.calendar.events.list()는 thenable을 반환하지만, 
-                // 환경에 따라 .catch가 직접 정의되지 않았을 수 있으므로 안전하게 Promise.resolve로 감쌉니다.
-                const fetchMyEvents = () => gapi.client.calendar.events.list({
-                    'calendarId': 'primary',
-                    'timeMin': timeMin,
-                    'timeMax': timeMax,
-                    'showDeleted': false,
-                    'singleEvents': true
+                // gapi의 요청 객체를 실제 Promise로 래핑하여 실행합니다.
+                const myEventsPromise = new Promise((resolve, reject) => {
+                    gapi.client.calendar.events.list({
+                        calendarId: 'primary',
+                        timeMin: tMin,
+                        timeMax: tMax,
+                        singleEvents: true
+                    }).then(resolve, reject);
                 });
 
-                const fetchHolidays = () => gapi.client.calendar.events.list({
-                    'calendarId': HOLIDAY_CAL_ID,
-                    'timeMin': timeMin,
-                    'timeMax': timeMax,
-                    'singleEvents': true
+                const holidayPromise = new Promise((resolve) => {
+                    gapi.client.calendar.events.list({
+                        calendarId: HOLIDAY_CAL_ID,
+                        timeMin: tMin,
+                        timeMax: tMax,
+                        singleEvents: true
+                    }).then(resolve, () => resolve({ result: { items: [] } }));
                 });
 
-                const [myEventsRes, holidayEventsRes] = await Promise.all([
-                    Promise.resolve(fetchMyEvents()),
-                    Promise.resolve(fetchHolidays()).catch(() => ({ result: { items: [] } }))
-                ]);
+                const [myRes, holRes] = await Promise.all([myEventsPromise, holidayPromise]);
 
                 const data = [];
-                const yearStart = new Date(year + "-01-01T00:00:00");
-                const yearEnd = new Date(year + "-12-31T23:59:59");
+                const ys = new Date(year + "-01-01");
+                const ye = new Date(year + "-12-31T23:59:59");
 
-                if (myEventsRes.result && myEventsRes.result.items) {
-                    myEventsRes.result.items.forEach(event => {
-                        if (event.summary === "사무실" || !event.summary) return;
-                        expandEventByDay(data, "", event, yearStart, yearEnd);
+                const process = (items, cat) => {
+                    items.forEach(e => {
+                        let cur = new Date(e.start.dateTime || e.start.date);
+                        let end = new Date(e.end.dateTime || e.end.date);
+                        while (cur < end) {
+                            if (cur >= ys && cur <= ye) {
+                                data.push({
+                                    category: cat,
+                                    title: e.summary || "(제목 없음)",
+                                    date: cur.toISOString().split('T')[0],
+                                    start: !e.start.dateTime ? "종일" : cur.toTimeString().slice(0, 5),
+                                    end: !e.end.dateTime ? "종일" : end.toTimeString().slice(0, 5),
+                                    isAllDay: !e.start.dateTime ? "O" : "X",
+                                    loc: e.location || "-"
+                                });
+                            }
+                            cur.setDate(cur.getDate() + 1); cur.setHours(0,0,0,0);
+                        }
                     });
-                }
+                };
 
-                if (holidayEventsRes.result && holidayEventsRes.result.items) {
-                    holidayEventsRes.result.items.forEach(event => {
-                        expandEventByDay(data, "휴일", event, yearStart, yearEnd);
-                    });
-                }
+                process(myRes.result.items || [], "");
+                process(holRes.result.items || [], "휴일");
 
                 data.sort((a, b) => new Date(a.date) - new Date(b.date));
                 cachedData[year] = data;
                 renderEvents(data);
 
             } catch (err) {
-                console.error("데이터 패치 에러:", err);
-                let errorMsg = "데이터 로드 실패";
-                let reason = "알 수 없는 에러";
-
-                if (err.result && err.result.error) {
-                    reason = `${err.result.error.message} (코드: ${err.result.error.code})`;
-                } else if (err.message) {
-                    reason = err.message;
-                }
-
-                eventList.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-6 py-10 text-center">
-                            <p class="text-red-500 font-bold mb-2">${errorMsg}</p>
-                            <p class="text-gray-600 text-sm">상세 사유: ${reason}</p>
-                            <div class="mt-6 text-xs text-left inline-block bg-gray-50 p-4 border rounded text-gray-500 leading-relaxed">
-                                <p class="font-bold mb-1">체크리스트:</p>
-                                <p>1. 구글 콘솔에서 'Google Calendar API'가 [사용 설정] 되어 있나요?</p>
-                                <p>2. API 키의 [웹사이트 제한] 주소가 정확한가요? (https://tyche-byte.github.io/*)</p>
-                                <p>3. OAuth 클라이언트 ID의 [승인된 JavaScript 원본] 주소가 정확한가요?</p>
-                                <p>4. 로그인 시 모든 권한(캘린더 조회)에 체크했나요?</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                eventTable.classList.remove('hidden');
+                console.error(err);
+                const msg = err.result?.error?.message || "데이터를 불러올 수 없습니다.";
+                document.getElementById('event_list').innerHTML = `<tr><td colspan="7" class="p-10 text-center text-red-500 font-bold">에러: ${msg}</td></tr>`;
+                document.getElementById('event_table').classList.remove('hidden');
             } finally {
-                loadingOverlay.classList.add('hidden');
+                document.getElementById('loading_overlay').classList.add('hidden');
             }
         }
 
-        function expandEventByDay(dataArray, category, event, yearStart, yearEnd) {
-            let start = new Date(event.start.dateTime || event.start.date);
-            let end = new Date(event.end.dateTime || event.end.date);
-            const isAllDay = !event.start.dateTime;
-
-            let current = new Date(start);
-            while (current < end) {
-                if (current >= yearStart && current <= yearEnd) {
-                    const dateStr = current.toISOString().split('T')[0];
-                    dataArray.push({
-                        category: category,
-                        title: event.summary,
-                        date: dateStr,
-                        startTime: isAllDay ? "종일" : (isSameDay(current, start) ? formatTime(start) : "00:00"),
-                        endTime: isAllDay ? "종일" : (isSameDay(current, end) ? formatTime(end) : "23:59"),
-                        isAllDay: isAllDay ? "O" : "X",
-                        location: event.location || "-"
-                    });
-                }
-                current.setDate(current.getDate() + 1);
-                current.setHours(0, 0, 0, 0);
-            }
-        }
-
-        function renderEvents(events) {
-            eventList.innerHTML = '';
-            if (events.length === 0) {
-                eventList.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-gray-500">일정이 없습니다.</td></tr>';
+        function renderEvents(evs) {
+            const list = document.getElementById('event_list');
+            if (!evs.length) {
+                list.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-500">일정이 없습니다.</td></tr>';
             } else {
-                events.forEach(ev => {
-                    const row = document.createElement('tr');
-                    if (ev.category === "휴일") row.classList.add('holiday-row', 'bg-red-50');
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">${ev.category}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${ev.title}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.startTime}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.endTime}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${ev.isAllDay}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">${ev.location}</td>
-                    `;
-                    eventList.appendChild(row);
-                });
+                list.innerHTML = evs.map(ev => `
+                    <tr class="${ev.category === '휴일' ? 'bg-red-50 text-red-600 font-semibold' : ''}">
+                        <td class="px-6 py-4">${ev.category}</td>
+                        <td class="px-6 py-4">${ev.title}</td>
+                        <td class="px-6 py-4">${ev.date}</td>
+                        <td class="px-6 py-4">${ev.start}</td>
+                        <td class="px-6 py-4">${ev.end}</td>
+                        <td class="px-6 py-4">${ev.isAllDay}</td>
+                        <td class="px-6 py-4 truncate max-w-xs">${ev.loc}</td>
+                    </tr>
+                `).join('');
             }
-            eventTable.classList.remove('hidden');
+            document.getElementById('event_table').classList.remove('hidden');
         }
 
-        function isSameDay(d1, d2) {
-            return d1.getFullYear() === d2.getFullYear() &&
-                   d1.getMonth() === d2.getMonth() &&
-                   d1.getDate() === d2.getDate();
-        }
-
-        function formatTime(date) {
-            return date.toTimeString().substring(0, 5);
+        function refreshCurrentYear() {
+            delete cachedData[currentYear];
+            fetchEvents(currentYear);
         }
     </script>
 </body>
